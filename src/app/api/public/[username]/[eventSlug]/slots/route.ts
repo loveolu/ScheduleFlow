@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api-helpers";
 import { getAvailableSlots, type ScheduleRule } from "@/lib/slots";
 import { getExternalBusyTimes } from "@/lib/integrations";
-import { parseISO, startOfDay, endOfDay } from "date-fns";
+import { startOfDay, endOfDay } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
 
 export async function GET(
   request: NextRequest,
@@ -48,11 +49,13 @@ export async function GET(
     return successResponse({ slots: [] });
   }
 
-  const date = parseISO(dateStr);
+  // Parse date as a date in the host's timezone (not UTC)
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = fromZonedTime(new Date(year, month - 1, day), user.timezone);
 
-  // Get existing bookings for the day
-  const dayStart = startOfDay(date);
-  const dayEnd = endOfDay(date);
+  // Get existing bookings for the day in host timezone
+  const dayStart = fromZonedTime(new Date(year, month - 1, day, 0, 0, 0), user.timezone);
+  const dayEnd = fromZonedTime(new Date(year, month - 1, day, 23, 59, 59), user.timezone);
 
   const existingBookings = await db.booking.findMany({
     where: {

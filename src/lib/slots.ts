@@ -105,10 +105,16 @@ export function getAvailableSlots(params: GetSlotsParams): TimeSlot[] {
   const dayOfWeek = getDay(toZonedTime(date, hostTimezone));
 
   // Check for date override
-  const dateStr = format(toZonedTime(date, hostTimezone), "yyyy-MM-dd");
-  const override = overrides.find(
-    (o) => format(toZonedTime(o.date, hostTimezone), "yyyy-MM-dd") === dateStr
-  );
+  // The `date` param is already correctly positioned in the host's timezone
+  // (converted by the API layer). Override dates from DB are DATE type stored
+  // with the raw date in the ISO string.
+  const dateStr = toZonedTime(date, hostTimezone)
+    .toISOString()
+    .split("T")[0];
+  const override = overrides.find((o) => {
+    const overrideDateStr = o.date.toISOString().split("T")[0];
+    return overrideDateStr === dateStr;
+  });
 
   if (override?.isBlocked) {
     return [];
