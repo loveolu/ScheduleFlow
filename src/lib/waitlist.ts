@@ -15,6 +15,19 @@ const transporter = nodemailer.createTransport({
     : {}),
 });
 
+const FROM_ADDRESS =
+  process.env.EMAIL_FROM ||
+  `"ScheduleFlow" <noreply@scheduleflow.com>`;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /**
  * Called when a booking is cancelled. Checks if there are waitlist entries
  * for the same event type and date range. If found, sends an email to the
@@ -89,10 +102,10 @@ export async function checkAndNotifyWaitlist(
         <div class="logo">SF</div>
       </div>
       <h1>A Spot Has Opened Up!</h1>
-      <p>Good news, ${entry.inviteeName}! A spot has become available for <strong>${entry.eventType.title}</strong> with ${entry.user.name || "the host"}.</p>
+      <p>Good news, ${escapeHtml(entry.inviteeName)}! A spot has become available for <strong>${escapeHtml(entry.eventType.title)}</strong> with ${escapeHtml(entry.user.name || "the host")}.</p>
       <p>Click the button below to book your spot before it fills up again.</p>
       <div class="actions">
-        <a href="${bookingLink}" class="btn">Book Now</a>
+        <a href="${encodeURI(bookingLink)}" class="btn">Book Now</a>
       </div>
     </div>
     <div class="footer">
@@ -104,7 +117,7 @@ export async function checkAndNotifyWaitlist(
 
   try {
     await transporter.sendMail({
-      from: `"ScheduleFlow" <noreply@scheduleflow.com>`,
+      from: FROM_ADDRESS,
       to: entry.inviteeEmail,
       subject: `A spot opened up for ${entry.eventType.title}!`,
       html,
