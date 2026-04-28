@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { bookingSchema } from "@/lib/validations";
-import { errorResponse, successResponse, validateBody } from "@/lib/api-helpers";
+import { validateBody } from "@/lib/api-helpers";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { getIdempotencyKey, withIdempotency } from "@/lib/idempotency";
 import { addMinutes } from "date-fns";
@@ -285,7 +285,3 @@ async function createBooking(data: BookingInput) {
 }
 
 class BookingConflict extends Error {}
-
-// Re-export of successResponse/errorResponse retained for type compatibility.
-void successResponse;
-void errorResponse;
