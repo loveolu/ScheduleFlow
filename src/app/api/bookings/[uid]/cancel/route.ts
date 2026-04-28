@@ -1,3 +1,4 @@
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api-helpers";
 import {
@@ -12,18 +13,51 @@ export async function PATCH(
   { params }: { params: Promise<{ uid: string }> }
 ) {
   const { uid } = await params;
+
+  // Auth gate: only the booking's host (event-type owner) or a team
+  // OWNER/ADMIN may cancel. Previously anyone with the UID could trigger
+  // cancellation emails, calendar deletes, and webhooks.
+  const session = await auth();
+  if (!session?.user?.id) {
+    return errorResponse("Unauthorized", 401);
+  }
+
   const body = await request.json().catch(() => ({}));
   const reason = body.reason || null;
 
   const booking = await db.booking.findUnique({
     where: { uid },
     include: {
-      eventType: { select: { title: true } },
+      eventType: { select: { title: true, userId: true } },
       user: { select: { name: true, email: true, timezone: true } },
     },
   });
 
   if (!booking) {
+    return errorResponse("Booking not found", 404);
+  }
+
+  const userId = session.user.id;
+  const isHost = booking.userId === userId;
+  const isEventTypeOwner = booking.eventType?.userId === userId;
+
+  let isTeamAdmin = false;
+  if (!isHost && !isEventTypeOwner) {
+    const adminMembership = await db.teamMember.findFirst({
+      where: {
+        userId,
+        role: { in: ["OWNER", "ADMIN"] },
+        team: {
+          members: { some: { userId: booking.userId } },
+        },
+      },
+      select: { id: true },
+    });
+    isTeamAdmin = adminMembership !== null;
+  }
+
+  if (!isHost && !isEventTypeOwner && !isTeamAdmin) {
+    // 404 rather than 403 to avoid confirming the existence of a booking.
     return errorResponse("Booking not found", 404);
   }
 
