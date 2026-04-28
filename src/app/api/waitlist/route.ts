@@ -2,8 +2,18 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { errorResponse, successResponse } from "@/lib/api-helpers";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Public endpoint — cap to 5 joins / IP / minute so bots can't flood
+  // Booking rows with metadata.waitlist=true.
+  const limited = enforceRateLimit(request, {
+    key: "waitlist-join",
+    limit: 5,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { eventTypeId, date, name, email, timezone } = body;

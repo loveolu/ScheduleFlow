@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { bookingSchema } from "@/lib/validations";
 import { errorResponse, successResponse, validateBody } from "@/lib/api-helpers";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { addMinutes } from "date-fns";
 import {
   sendBookingConfirmedHost,
@@ -15,6 +16,16 @@ import {
 import { deliverWebhooks } from "@/lib/webhooks";
 
 export async function POST(request: Request) {
+  // Public endpoint — anyone can hit it. Cap to 10 bookings / IP / minute so
+  // bots can't spray Calendly-themed spam to arbitrary inviteeEmails through
+  // our SMTP / calendar integrations.
+  const limited = enforceRateLimit(request, {
+    key: "public-bookings",
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const { data, error } = await validateBody(request, bookingSchema);
   if (error) return error;
 

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { registerSchema } from "@/lib/validations";
 import { handleZodError } from "@/lib/api-helpers";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { ZodError } from "zod";
 
 const DEFAULT_WEEKDAY_SCHEDULE = [1, 2, 3, 4, 5].map((day) => ({
@@ -13,6 +14,16 @@ const DEFAULT_WEEKDAY_SCHEDULE = [1, 2, 3, 4, 5].map((day) => ({
 }));
 
 export async function POST(request: Request) {
+  // Public endpoint — cap to 5 registrations / IP / minute. bcrypt.hash with
+  // cost factor 12 takes ~250 ms, so without a limit a single attacker can
+  // burn server CPU very cheaply. Also slows account-spam.
+  const limited = enforceRateLimit(request, {
+    key: "register",
+    limit: 5,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const data = registerSchema.parse(body);
