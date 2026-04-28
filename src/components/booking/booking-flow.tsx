@@ -70,6 +70,15 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
     startTime: string;
     endTime: string;
   } | null>(null);
+  // One idempotency key per booking attempt — re-issued whenever the user
+  // returns to the slot picker (selecting a *different* slot is a different
+  // booking). Sent as Idempotency-Key on POST /api/public/bookings so a
+  // double-click or retry on a flaky network produces exactly one booking.
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 
   const initials = user.name
     ?.split(" ")
@@ -102,7 +111,10 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
     try {
       const res = await fetch("/api/public/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify({
           eventTypeId: eventType.id,
           startTime: selectedSlot.start,
@@ -287,6 +299,12 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                       onClick={() => {
                         setSelectedDate(null);
                         setSelectedSlot(null);
+                        setIdempotencyKey(
+                          typeof crypto !== "undefined" &&
+                            "randomUUID" in crypto
+                            ? crypto.randomUUID()
+                            : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+                        );
                         setStep("calendar");
                       }}
                     >
