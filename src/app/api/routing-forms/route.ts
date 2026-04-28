@@ -7,25 +7,42 @@ import { z } from "zod";
 // This is a lightweight approach — routing forms are stored as a special
 // JSON structure that maps answers to event type IDs
 
+// `routeToUrl` was previously an unvalidated string. Anyone with an account
+// could create a routing form whose option redirects to javascript: or
+// data: URIs, which a victim clicking the form would execute. Tighten the
+// schema to require an http(s) URL.
 const routingFormSchema = z.object({
   title: z.string().min(1).max(100),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   description: z.string().max(500).optional(),
-  fields: z.array(
-    z.object({
-      id: z.string(),
-      label: z.string(),
-      type: z.enum(["select", "radio"]),
-      options: z.array(
-        z.object({
-          label: z.string(),
-          value: z.string(),
-          routeToEventTypeId: z.string().optional(),
-          routeToUrl: z.string().optional(),
-        })
-      ),
-    })
-  ),
+  fields: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(100),
+        label: z.string().min(1).max(200),
+        type: z.enum(["select", "radio"]),
+        options: z
+          .array(
+            z.object({
+              label: z.string().min(1).max(200),
+              value: z.string().min(1).max(200),
+              routeToEventTypeId: z.string().min(1).max(100).optional(),
+              routeToUrl: z
+                .string()
+                .url()
+                .refine(
+                  (u) => u.startsWith("https://") || u.startsWith("http://"),
+                  { message: "routeToUrl must be an http(s) URL" }
+                )
+                .optional(),
+            })
+          )
+          .min(1)
+          .max(50),
+      })
+    )
+    .min(1)
+    .max(20),
 });
 
 // Store routing forms as JSON files in a simple key-value approach
