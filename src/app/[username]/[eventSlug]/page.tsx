@@ -1,6 +1,82 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { BookingFlow } from "@/components/booking/booking-flow";
+
+const RESERVED_USERNAMES = [
+  "dashboard",
+  "login",
+  "signup",
+  "api",
+  "booking",
+  "polls",
+  "route",
+];
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string; eventSlug: string }>;
+}): Promise<Metadata> {
+  const { username, eventSlug } = await params;
+
+  if (RESERVED_USERNAMES.includes(username)) {
+    return { title: "Not found" };
+  }
+
+  // generateMetadata runs in parallel with the page render; both call the
+  // same query but Next/React will dedupe the request internally.
+  const eventType = await db.eventType.findFirst({
+    where: {
+      slug: eventSlug,
+      isActive: true,
+      user: { username },
+    },
+    select: {
+      title: true,
+      description: true,
+      duration: true,
+      user: { select: { name: true, username: true, avatarUrl: true } },
+    },
+  });
+
+  if (!eventType) return { title: "Not found" };
+
+  const hostName = eventType.user.name || eventType.user.username || "host";
+  const title = `${eventType.title} with ${hostName}`;
+  const description =
+    eventType.description ||
+    `Book a ${eventType.duration}-minute meeting with ${hostName}.`;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const url = appUrl
+    ? `${appUrl}/${eventType.user.username}/${eventSlug}`
+    : undefined;
+  const image = eventType.user.avatarUrl || undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "ScheduleFlow",
+      type: "website",
+      ...(image
+        ? { images: [{ url: image, alt: `${hostName}'s avatar` }] }
+        : {}),
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+    robots: { index: true, follow: true },
+    alternates: url ? { canonical: url } : undefined,
+  };
+}
 
 export default async function BookingPage({
   params,
@@ -9,7 +85,7 @@ export default async function BookingPage({
 }) {
   const { username, eventSlug } = await params;
 
-  if (["dashboard", "login", "signup", "api", "booking", "polls", "route"].includes(username)) {
+  if (RESERVED_USERNAMES.includes(username)) {
     notFound();
   }
 

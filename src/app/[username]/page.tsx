@@ -1,7 +1,69 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const RESERVED_USERNAMES = [
+  "dashboard",
+  "login",
+  "signup",
+  "api",
+  "booking",
+  "polls",
+  "route",
+];
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Metadata> {
+  const { username } = await params;
+
+  if (RESERVED_USERNAMES.includes(username)) {
+    return { title: "Not found" };
+  }
+
+  const user = await db.user.findUnique({
+    where: { username },
+    select: { name: true, username: true, bio: true, avatarUrl: true },
+  });
+
+  if (!user) return { title: "Not found" };
+
+  const displayName = user.name || user.username || "Host";
+  const title = `${displayName} on ScheduleFlow`;
+  const description =
+    user.bio || `Book a meeting with ${displayName} on ScheduleFlow.`;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const url = appUrl ? `${appUrl}/${user.username}` : undefined;
+  const image = user.avatarUrl || undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "ScheduleFlow",
+      type: "profile",
+      ...(image
+        ? { images: [{ url: image, alt: `${displayName}'s avatar` }] }
+        : {}),
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+    robots: { index: true, follow: true },
+    alternates: url ? { canonical: url } : undefined,
+  };
+}
 
 export default async function PublicProfilePage({
   params,
@@ -11,7 +73,7 @@ export default async function PublicProfilePage({
   const { username } = await params;
 
   // Skip known routes
-  if (["dashboard", "login", "signup", "api", "booking", "polls", "route"].includes(username)) {
+  if (RESERVED_USERNAMES.includes(username)) {
     notFound();
   }
 

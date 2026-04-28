@@ -13,9 +13,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Defaults applied to every page that doesn't generate its own metadata.
+// Public booking and profile pages override these via generateMetadata().
 export const metadata: Metadata = {
-  title: "ScheduleFlow - Modern Scheduling Platform",
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL
+    ? new URL(process.env.NEXT_PUBLIC_APP_URL)
+    : undefined,
+  title: {
+    default: "ScheduleFlow - Modern Scheduling Platform",
+    template: "%s · ScheduleFlow",
+  },
   description: "A modern scheduling platform for professionals and teams",
+  openGraph: {
+    title: "ScheduleFlow - Modern Scheduling Platform",
+    description:
+      "A modern scheduling platform for professionals and teams",
+    siteName: "ScheduleFlow",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ScheduleFlow - Modern Scheduling Platform",
+    description:
+      "A modern scheduling platform for professionals and teams",
+  },
 };
 
 export default function RootLayout({
