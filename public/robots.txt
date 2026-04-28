@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /onboarding
+Disallow: /booking/
+Disallow: /embed/
+Allow: /
+
+# Sitemap is per-environment; populate via NEXT_PUBLIC_APP_URL or omit.

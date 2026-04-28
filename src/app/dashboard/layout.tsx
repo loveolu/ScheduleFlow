@@ -2,9 +2,12 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/dashboard/sidebar";
 
+// Dashboard is auth-gated — search engines should never index any
+// /dashboard/* URL, even if a query string accidentally leaks via referer.
 export const metadata = {
-  title: "Dashboard | ScheduleFlow",
+  title: "Dashboard",
   description: "Manage your scheduling, bookings, and availability.",
+  robots: { index: false, follow: false },
 };
 
 export default async function DashboardLayout({

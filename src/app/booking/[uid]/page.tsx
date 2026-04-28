@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
@@ -6,6 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getGoogleCalendarUrl, getOutlookCalendarUrl } from "@/lib/ics";
 import Link from "next/link";
+
+// Booking confirmation pages contain invitee email + name. Don't index
+// them — both for privacy (search-engine cache exposure) and because the
+// UID-keyed URL is meant to be shared via email, not crawled.
+export const metadata: Metadata = {
+  title: "Booking",
+  robots: { index: false, follow: false, nocache: true },
+};
 
 export default async function BookingConfirmationPage({
   params,
