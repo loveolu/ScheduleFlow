@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { db } from "@/lib/db";
+import { assertSafeWebhookUrl } from "@/lib/ssrf-guard";
 
 interface WebhookPayload {
   event: string;
@@ -56,6 +57,19 @@ async function deliverWithRetry(
   const maxAttempts = 3;
   const signature = signPayload(payload, secret);
 
+  // SSRF guard: re-check the URL on every delivery attempt. Re-resolving DNS
+  // each time defeats DNS rebinding (where an attacker's resolver returns a
+  // public IP at registration and a private IP at delivery time). We resolve
+  // via dns.lookup and reject loopback / private / link-local / metadata
+  // ranges before issuing fetch().
+  const safety = await assertSafeWebhookUrl(url);
+  if (!safety.ok) {
+    console.error(
+      `Webhook delivery blocked for subscription ${subscriptionId}: ${safety.reason} (${url})`
+    );
+    return;
+  }
+
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -66,6 +80,9 @@ async function deliverWithRetry(
       },
       body: payload,
       signal: AbortSignal.timeout(10000),
+      // Disable redirect following — a permitted public URL could 30x to a
+      // private host, which fetch() would follow by default.
+      redirect: "manual",
     });
 
     if (!res.ok && attempt < maxAttempts) {
