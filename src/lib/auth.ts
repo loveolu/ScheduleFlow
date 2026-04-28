@@ -5,9 +5,23 @@ import GitHub from "next-auth/providers/github";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { requireEnv } from "@/lib/env";
+
+// Hard-fail on app startup if NEXTAUTH_SECRET is missing. Previously the
+// secret could silently default to whatever the runtime had (or, worse, the
+// literal "dev-secret-change-in-production" left in .env), which would mint
+// session tokens any forked dev environment could decrypt. Throwing here
+// makes that misconfiguration impossible to ship.
+// Accept either NEXTAUTH_SECRET (NextAuth v4 / our convention) or AUTH_SECRET
+// (NextAuth v5's preferred name) so users on either spelling work.
+const authSecret =
+  process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET
+    ? (process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET)!
+    : requireEnv("NEXTAUTH_SECRET");
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
+  secret: authSecret,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
