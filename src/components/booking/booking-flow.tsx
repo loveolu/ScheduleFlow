@@ -222,62 +222,82 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                       variant="ghost"
                       size="icon"
                       onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                      aria-label={`Previous month, ${format(subMonths(currentMonth, 1), "MMMM yyyy")}`}
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                     </Button>
-                    <span className="font-semibold text-sm">
+                    <span
+                      className="font-semibold text-sm"
+                      role="heading"
+                      aria-level={3}
+                      aria-live="polite"
+                    >
                       {format(currentMonth, "MMMM yyyy")}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                      aria-label={`Next month, ${format(addMonths(currentMonth, 1), "MMMM yyyy")}`}
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4" aria-hidden="true" />
                     </Button>
                   </div>
 
-                  {/* Day headers */}
-                  <div className="grid grid-cols-7 mb-1">
-                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                      (day) => (
-                        <div
-                          key={day}
-                          className="text-center text-xs text-slate-400 py-1"
-                        >
-                          {day}
-                        </div>
-                      )
-                    )}
-                  </div>
+                  {/* Day headers + grid use role="grid" so screen readers
+                      announce row/column structure correctly. Each day cell
+                      gets aria-label with the full date and selection state.
+                      Past dates are aria-disabled so they're announced as
+                      such even though they're still focusable. */}
+                  <div role="grid" aria-label={format(currentMonth, "MMMM yyyy")}>
+                    <div className="grid grid-cols-7 mb-1" role="row">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                        (day) => (
+                          <div
+                            key={day}
+                            role="columnheader"
+                            className="text-center text-xs text-slate-400 py-1"
+                          >
+                            {day}
+                          </div>
+                        )
+                      )}
+                    </div>
 
-                  {/* Calendar grid */}
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: startDayOfWeek }).map((_, i) => (
-                      <div key={`empty-${i}`} />
-                    ))}
-                    {days.map((day) => {
-                      const isPast = isBefore(day, today);
-                      const isSelected = selectedDate && isSameDay(day, selectedDate);
-                      const isTodayDate = isToday(day);
+                    <div className="grid grid-cols-7 gap-1" role="row">
+                      {Array.from({ length: startDayOfWeek }).map((_, i) => (
+                        <div key={`empty-${i}`} role="gridcell" aria-hidden="true" />
+                      ))}
+                      {days.map((day) => {
+                        const isPast = isBefore(day, today);
+                        const isSelected = selectedDate && isSameDay(day, selectedDate);
+                        const isTodayDate = isToday(day);
+                        const dayLabel = format(day, "EEEE, MMMM d, yyyy");
 
-                      return (
-                        <button
-                          key={day.toISOString()}
-                          onClick={() => !isPast && setSelectedDate(day)}
-                          disabled={isPast}
-                          className={`
-                            aspect-square rounded-lg text-sm font-medium transition-all
-                            flex items-center justify-center
-                            ${isPast ? "text-slate-300 cursor-not-allowed" : "hover:bg-indigo-50 cursor-pointer"}
-                            ${isSelected ? "bg-indigo-600 text-white hover:bg-indigo-700" : ""}
-                            ${isTodayDate && !isSelected ? "ring-1 ring-indigo-300" : ""}
-                          `}
-                        >
-                          {format(day, "d")}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={day.toISOString()}
+                            onClick={() => !isPast && setSelectedDate(day)}
+                            disabled={isPast}
+                            aria-disabled={isPast}
+                            aria-label={`${dayLabel}${isSelected ? ", selected" : ""}${isTodayDate ? ", today" : ""}`}
+                            aria-pressed={isSelected ?? false}
+                            aria-current={isTodayDate ? "date" : undefined}
+                            role="gridcell"
+                            className={`
+                              aspect-square rounded-lg text-sm font-medium transition-all
+                              flex items-center justify-center
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
+                              ${isPast ? "text-slate-300 cursor-not-allowed" : "hover:bg-indigo-50 cursor-pointer"}
+                              ${isSelected ? "bg-indigo-600 text-white hover:bg-indigo-700" : ""}
+                              ${isTodayDate && !isSelected ? "ring-1 ring-indigo-300" : ""}
+                            `}
+                          >
+                            {format(day, "d")}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -314,27 +334,47 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                   </div>
 
                   {loadingSlots ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                    <div
+                      className="flex items-center justify-center py-12"
+                      role="status"
+                      aria-live="polite"
+                      aria-label="Loading available times"
+                    >
+                      <Loader2
+                        className="w-6 h-6 animate-spin text-indigo-500"
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">Loading available times…</span>
                     </div>
                   ) : slots.length === 0 ? (
-                    <p className="text-center text-slate-400 py-12">
+                    <p
+                      className="text-center text-slate-400 py-12"
+                      role="status"
+                      aria-live="polite"
+                    >
                       No available times for this date.
                     </p>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[350px] overflow-y-auto pr-1">
+                    <div
+                      role="listbox"
+                      aria-label={`Available times${selectedDate ? ` for ${format(selectedDate, "EEEE, MMMM d")}` : ""}`}
+                      className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[350px] overflow-y-auto pr-1"
+                    >
                       {slots.map((slot) => {
                         const isSelected =
                           selectedSlot?.start === slot.start;
                         return (
                           <button
                             key={slot.start}
+                            role="option"
+                            aria-selected={isSelected}
                             onClick={() => {
                               setSelectedSlot(slot);
                               setStep("details");
                             }}
                             className={`
                               py-2.5 px-3 rounded-lg text-sm font-medium border transition-all
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1
                               ${
                                 isSelected
                                   ? "bg-indigo-600 text-white border-indigo-600"
@@ -374,7 +414,10 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
 
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="name">Name *</Label>
+                      <Label htmlFor="name">
+                        Name <span aria-hidden="true">*</span>
+                        <span className="sr-only">required</span>
+                      </Label>
                       <Input
                         id="name"
                         value={formData.name}
@@ -383,11 +426,16 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                         }
                         placeholder="Your name"
                         required
+                        aria-required="true"
+                        autoComplete="name"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="email">Email *</Label>
+                      <Label htmlFor="email">
+                        Email <span aria-hidden="true">*</span>
+                        <span className="sr-only">required</span>
+                      </Label>
                       <Input
                         id="email"
                         type="email"
@@ -397,6 +445,9 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                         }
                         placeholder="you@example.com"
                         required
+                        aria-required="true"
+                        autoComplete="email"
+                        inputMode="email"
                       />
                     </div>
 
@@ -405,7 +456,13 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                       <div key={q.id}>
                         <Label htmlFor={q.id}>
                           {q.label}
-                          {q.required && " *"}
+                          {q.required && (
+                            <>
+                              {" "}
+                              <span aria-hidden="true">*</span>
+                              <span className="sr-only">required</span>
+                            </>
+                          )}
                         </Label>
                         {q.type === "textarea" ? (
                           <Textarea
@@ -421,6 +478,8 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                               })
                             }
                             placeholder={q.placeholder}
+                            aria-required={q.required}
+                            required={q.required}
                           />
                         ) : (
                           <Input
@@ -437,6 +496,15 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                               })
                             }
                             placeholder={q.placeholder}
+                            aria-required={q.required}
+                            required={q.required}
+                            autoComplete={
+                              q.type === "email"
+                                ? "email"
+                                : q.type === "phone"
+                                ? "tel"
+                                : undefined
+                            }
                           />
                         )}
                       </div>
@@ -475,8 +543,13 @@ export function BookingFlow({ user, eventType }: BookingFlowProps) {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-center py-8"
+                  role="status"
+                  aria-live="polite"
                 >
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div
+                    className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"
+                    aria-hidden="true"
+                  >
                     <Check className="w-8 h-8 text-green-600" />
                   </div>
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
